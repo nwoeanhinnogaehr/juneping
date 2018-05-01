@@ -50,7 +50,7 @@ time=0
 def f6(time, t, idx, x):
     t *= 1
     z = t%(1+t/(1+(t//(16+(t>>13&t>>16))^t>>10))+idx[0])
-    y = sin(z)/fmax((1+idx[1]**1.0), 1)*8 + 1j*sin(idx[1]**0.5*(time)*0.001)*6.28
+    y = sin(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]**0.5*(time)*0.003)*1
     x += from_polar(y)
 fns = {
         10: [],
