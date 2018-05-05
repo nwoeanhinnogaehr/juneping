@@ -8,7 +8,7 @@ stft_defs = {
         11: STFT(2048, 2, 2),
         12: STFT(4096, 2, 2),
         14: STFT(16384, 2, 2),
-        16: STFT(65536, 2, 2)
+        16: STFT(65536*2, 2, 2)
 }
 
 
@@ -76,11 +76,10 @@ fns = {
 }
 
 time=0
-
 def f8(time, t, idx, x):
-    t *= int(time/32)
-    z = idx[0]+ t*(1/(1+(t>>12&t>>13)%64))
-    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z*32)*1
+    t *= int(time/8)
+    z = idx[0]+ t*(1/(1+(t>>13^t>>16)))
+    y = sin(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z)*1
     x += from_polar(y)
 fns = {
         10: [],
@@ -88,6 +87,19 @@ fns = {
         12: [],
         14: [],
         16: [f8],
+}
+
+time=0
+def f9(time, t, idx, x):
+    z = idx[0]+ t*(1/(1+(t>>1&t>>2)))
+    y = sin(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z)*1
+    x += from_polar(y)
+fns = {
+        10: [],
+        11: [],
+        12: [],
+        14: [],
+        16: [f9],
 }
 
 def process(i, o):
