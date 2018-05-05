@@ -61,6 +61,20 @@ fns = {
         16: [],
 }
 
+time=0
+def f7(time, t, idx, x):
+    t *= int(time*0.01)
+    z = idx[0]+ t*(2/(1+(t//5000&t//8000)%32))
+    y = sin(z*0.01)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]*z*8)*1
+    x += from_polar(y)
+fns = {
+        10: [],
+        11: [f7],
+        12: [],
+        14: [],
+        16: [],
+}
+
 def process(i, o):
     global time
     o[:] = i
