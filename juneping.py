@@ -63,9 +63,9 @@ fns = {
 
 time=0
 def f7(time, t, idx, x):
-    t *= int(time*0.01)
-    z = idx[0]+ t*(2/(1+(t//5000&t//8000)%32))
-    y = sin(z*0.01)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]*z*8)*1
+    t *= int(time/256)
+    z = idx[0]+ t*(2/(1+(t//4096&t//8192)%32))
+    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]*z*256)*1
     x += from_polar(y)
 fns = {
         10: [],
