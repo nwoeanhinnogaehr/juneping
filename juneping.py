@@ -64,8 +64,8 @@ fns = {
 time=0
 def f7(time, t, idx, x):
     t *= int(time/256)
-    z = idx[0]+ t*(2/(1+(t//4096&t//8192)%32))
-    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]*z*256)*1
+    z = idx[0]+ t*(1/(1+(t//4096&t//8192)%256))
+    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]*z)*1
     x += from_polar(y)
 fns = {
         10: [],
@@ -73,6 +73,21 @@ fns = {
         12: [],
         14: [],
         16: [],
+}
+
+time=0
+
+def f8(time, t, idx, x):
+    t *= int(time/32)
+    z = idx[0]+ t*(1/(1+(t>>12&t>>13)%64))
+    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z*32)*1
+    x += from_polar(y)
+fns = {
+        10: [],
+        11: [],
+        12: [],
+        14: [],
+        16: [f8],
 }
 
 def process(i, o):
