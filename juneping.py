@@ -102,6 +102,20 @@ fns = {
         16: [f9],
 }
 
+time=0
+def f10(time, t, idx, x):
+    t *= int(time/8)
+    z = idx[0]+ t*(1/(1+(t>>10&t>>11&t>>12)))
+    y = sin(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z)*1
+    x += from_polar(y)
+fns = {
+        10: [],
+        11: [],
+        12: [],
+        14: [],
+        16: [f10],
+}
+
 def process(i, o):
     global time
     o[:] = i
