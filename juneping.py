@@ -15,24 +15,34 @@ stft_defs = {
 
 
 time = 0
-
-
+f1ly=None
 def f1(time, t, idx, x):
+    global f1ly
+    if f1ly is None:
+        f1ly=zeros(x.shape)
     t //= 9
-    y = sin((t|t>>13|t>>9|t>>4|t>>16)*min(time*0.01, 2))/fmax((1+idx[1]), 8)*16
+    y = sin((t|t>>13|t>>9|t>>4|t>>16)*min(time*0.01, 2))/fmax((1+idx[1]), 8)*64
+    y = where(f1ly>y, f1ly*0.9, y*0.8+f1ly*0.2)
+    f1ly[:] = y
     x.real[:] += y
     x.imag[:] += y*2.2
 fns = {
-        13: [f1],
+        14: [f1],
         }
 
-def f2(time, t, idx, x):
-    x.real[:] += sin(t/(1+t%(1+(t//9&t//89^t>>9^t>>13)))*min(time*0.001, 2))/fmax((1+idx[1]), 16)*32
-    x.imag[:] += x.real*sin(t*0.01)
+def f4(time, t, idx, x):
+    x.real[:] += sin(5*(t%(1+t/(1+(t&t>>9|t>>13^t>>18)))))/fmax((1+idx[1]), 1)*8
+    x.imag[:] += cos(4*(t%(1+t/(1+(t&t>>9|t>>12^t>>17)))))/fmax((1+idx[1]), 1)*8
 fns = {
-        14: [f2],
+        10: [],
+        11: [],
+        12: [],
+        14: [f4],
+        16: [f4],
+        17: [],
         }
 
+stft_defs[12] = STFT(4096, 2, 2)
 def f3(time, t, idx, x):
     t = (time*7*x.shape[1]+idx[1])
     y =  sin(idx[0]+(t/(1+((t//5&t//11))%(8192)))*min(time*0.1, 20))/fmax((1+idx[1]**1.5), 1)*8
@@ -41,34 +51,72 @@ def f3(time, t, idx, x):
     x.imag[:] += y
 fns = {
         12: [f3],
+        16: [f4],
         }
 
 
-# cabinet simulator: gain 20, event off-axis, 100hz++
-def f4(time, t, idx, x):
-    x.real[:] += sin(5*(t%(1+t/(1+(t&t>>9|t>>13^t>>18)))))/fmax((1+idx[1]), 1)*8
-    x.imag[:] += cos(4*(t%(1+t/(1+(t&t>>9|t>>12^t>>17)))))/fmax((1+idx[1]), 1)*8
+time=0
+def f19(time, t, idx, x):
+    z = idx[0]+ t*(1/(1+(t>>8&t>>12&t>>15)))
+    y = squ(z+idx[1])/fmax((1+idx[1]**1.0), 1)*x.shape[1]/2048 + 1j*squ(z*idx[1])*2*pi
+    x += from_polar(y)
 fns = {
         10: [],
         11: [],
         12: [],
-        14: [f2],
-        16: [],
-        17: [],
+        14: [f19],
+        16: [f19],
+        17: [f19],
         }
 
+fns = {
+        10: [f19],
+        11: [],
+        12: [],
+        14: [f19],
+        16: [f19],
+        17: [f19],
+        }
+
+time=0
+def f2(time, t, idx, x):
+    x.real[:] += sin(t/(1+t%(1+(t//9&t//89^t>>9^t>>13)))*min(time*0.001, 2))/fmax((1+idx[1]), 16)*16
+    x.imag[:] += x.real*sin(t*0.01)
+fns = {
+        14: [f2],
+        }
+
+
 def f5(time, t, idx, x):
-    t = (time*7*x.shape[1]+idx[1])
+    sz = [3,4,0,5][int(log2(x.shape[1])-12)]
+    t = (int(time*5+sz)*x.shape[1]+idx[1])
     t *= 1
     z = t/(1+t%(1+(t>>5&t>>9^t>>13))+idx[0])
     y = sin(z)/fmax((1+idx[1]**1.0), 1)*8 + 1j*z
     x += from_polar(y)
 fns = {
+        10: [],
+        11: [],
+        12: [],
+        17: [],
         13: [f5],
         14: [f5],
         16: [f5],
         }
 time=0
+def process(i, o):
+    global time
+    o[:] = i
+    for size in stft_defs:
+        stft = stft_defs[size]
+        for x in stft.forward(o):
+            idx = indices(x.shape)
+            t = (time*x.shape[1]+idx[1])
+            for fn in fns[size]:
+                fn(time, copy(t), idx, x)
+            stft.backward(x)
+            time += 1
+        stft.pop(o)
 
 time=0
 
@@ -89,14 +137,14 @@ fns = {
 
 time=0
 def f7(time, t, idx, x):
-    t = (time*7*x.shape[1]+idx[1])
+    t = (time*1*x.shape[1]+idx[1])
     t *= int(time/256)+1
     z = idx[0]+ t*(1/(1+(t//4096&t//8192)%256))
-    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/256 + 1j*sin(idx[1]*z)*1
+    y = sin(z/256)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/384 + 1j*sin(idx[1]*z)*1
     x += from_polar(y)
 fns = {
         10: [],
-        11: [f7],
+        11: [f6,f7],
         12: [],
         14: [],
         16: [],
@@ -106,14 +154,15 @@ fns = {
 time=0
 def f8(time, t, idx, x):
     t = (time*7*x.shape[1]+idx[1])
-    t *= int(time/8)+1
-    z = idx[0]+ t*(1/(1+(t>>13^t>>16)))
+    t *= int(time/2)+1
+    z = idx[0]+ t*(1/(1+(t>>6^t>>13^t>>14)))
     y = sin(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z)*1
     x += from_polar(y)
 fns = {
         10: [],
         11: [],
         12: [],
+        13: [],
         14: [],
         16: [f8],
         17: [],
@@ -135,18 +184,32 @@ fns = {
         }
 
 time=0
-def f10(time, t, idx, x):
-    t = (time*7*x.shape[1]+idx[1])
-    z = idx[0]+ t*(1/(1+(t>>8&t>>10&t>>12)))
-    y = sin(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]*z)*1
+def f10p1(time, t, idx, x):
+    t = (time*1*x.shape[1]+idx[1])
+    z = idx[0]+ t/((1+(t>>8&t>>10&t>>12)))
+    y = sin(z/(idx[1]+1))/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(z*z)*1
     x += from_polar(y)
+def f10(time, t, idx, x):
+    t = (time*1*x.shape[1]+idx[1])
+    z = idx[0]+ t%((1+(t>>8&t>>10&t>>12)))
+    y = sin(z/(idx[1]+1))/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*sin(idx[1]+z/(1+idx[1]))*1
+    x += from_polar(y)
+
 fns = {
-        10: [],
-        11: [],
+        10: [f10],
+        11: [f10],
         12: [],
-        14: [],
+        14: [f10,f10p1],
+        16: [],
+        17: [f10],
+        }
+
+fns = {
+        10: [f10],
+        11: [f10],
+        14: [f10],
         16: [f10],
-        17: [],
+        17: [f10],
         }
 
 time=0
@@ -217,6 +280,7 @@ fns = {
         17: [],
         }
 
+
 time=0
 def f15(time, _, idx, x):
     t = (time*7*x.shape[1]+idx[1])
@@ -264,6 +328,7 @@ fns = {
         16: [],
         17: [f18],
         }
+
 
 def process(i, o):
     global time
