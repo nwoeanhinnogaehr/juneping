@@ -21,7 +21,7 @@ def f1(time, t, idx, x):
     if f1ly is None:
         f1ly=zeros(x.shape)
     t //= 9
-    y = sin((t|t>>13|t>>9|t>>4|t>>16)*min(time*0.01, 2))/fmax((1+idx[1]), 8)*64
+    y = sin((t|t>>13|t>>9|t>>4|t>>16^idx[0])*min(time*0.01, 2))/fmax((1+idx[1]), 8)*64
     y = where(f1ly>y, f1ly*0.9, y*0.8+f1ly*0.2)
     f1ly[:] = y
     x.real[:] += y
@@ -32,7 +32,7 @@ fns = {
 
 def f4(time, t, idx, x):
     x.real[:] += sin(5*(t%(1+t/(1+(t&t>>9|t>>13^t>>18)))))/fmax((1+idx[1]), 1)*8
-    x.imag[:] += cos(4*(t%(1+t/(1+(t&t>>9|t>>12^t>>17)))))/fmax((1+idx[1]), 1)*8
+    x.imag[:] += cos(4*(t%(1+t/(1+idx[0]+(t&t>>9|t>>12^t>>17)))))/fmax((1+idx[1]), 1)*8
 fns = {
         10: [],
         11: [],
@@ -87,36 +87,7 @@ fns = {
         }
 
 
-def f5(time, t, idx, x):
-    sz = [3,4,0,5][int(log2(x.shape[1])-12)]
-    t = (int(time*5+sz)*x.shape[1]+idx[1])
-    t *= 1
-    z = t/(1+t%(1+(t>>5&t>>9^t>>13))+idx[0])
-    y = sin(z)/fmax((1+idx[1]**1.0), 1)*8 + 1j*z
-    x += from_polar(y)
-fns = {
-        10: [],
-        11: [],
-        12: [],
-        17: [],
-        13: [f5],
-        14: [f5],
-        16: [f5],
-        }
-time=0
-def process(i, o):
-    global time
-    o[:] = i
-    for size in stft_defs:
-        stft = stft_defs[size]
-        for x in stft.forward(o):
-            idx = indices(x.shape)
-            t = (time*x.shape[1]+idx[1])
-            for fn in fns[size]:
-                fn(time, copy(t), idx, x)
-            stft.backward(x)
-            time += 1
-        stft.pop(o)
+
 
 time=0
 
@@ -238,8 +209,8 @@ def squ(x):
     return sign((x%2*pi)-pi)
 
 def f12(time, t, idx, x):
-    z = idx[0]+ t*(1/(1+(t>>8&t>>12&t>>15)))
-    y = squ(z)/fmax((1+idx[1]**1.0), 1)*x.shape[1]/1024 + 1j*squ(idx[1]*z)*2*pi
+    z = 1+t|(t*(1/(1+(idx[0]*32+t>>8&t>>12&t>>15)))).astype(int)
+    y = squ(z)/fmax(abs((idx[1]**1.0)), 1)*x.shape[1]/1024 + 1j*squ(idx[1]*z)*2*pi
     x += from_polar(y)
 fns = {
         10: [],
@@ -345,3 +316,36 @@ def process(i, o):
                 stft.backward(x)
                 time += 1
             stft.pop(o)
+
+
+
+def f5(time, t, idx, x):
+    sz = [3,4,0,5][int(log2(x.shape[1])-12)]
+    t = (int(time*5+sz)*x.shape[1]+idx[1])
+    t *= 1
+    z = t/(1+t%(1+(t>>5&t>>9^t>>13))+idx[0])
+    y = sin(z)/fmax((1+idx[1]**1.0), 1)*8 + 1j*z
+    x += from_polar(y)
+fns = {
+        10: [],
+        11: [],
+        12: [],
+        17: [],
+        13: [f5],
+        14: [f5],
+        16: [f5],
+        }
+time=0
+def process(i, o):
+    global time
+    o[:] = i
+    for size in stft_defs:
+        stft = stft_defs[size]
+        for x in stft.forward(o):
+            idx = indices(x.shape)
+            t = (time*x.shape[1]+idx[1])
+            for fn in fns[size]:
+                fn(time, copy(t), idx, x)
+            stft.backward(x)
+            time += 1
+        stft.pop(o)
