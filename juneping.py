@@ -389,7 +389,7 @@ def f28(time, _, idx, x, pv):
     z = t
     ph = ((t^t>>2^t>>4^t>>7^t>>11^t>>14)%((1<<15)+idx[1]))*(idx[1])+idx[0]
     x[:] = pv.shift(x, lambda fq: (ph)%22050)
-    x.real[:] = sin(z/(1+ph))/fmax((1+idx[1]**0.7), 1)*x.shape[1]/1024
+    x.real[:] = sin(z/(1+ph))/fmax((1+idx[1]**0.9), 1)*x.shape[1]/1024
     ph = ((t&t>>5&t>>10&t>>15))^idx[0]
     pv.shift(x, lambda fq: (ph)%22050).real
 fadeto({
